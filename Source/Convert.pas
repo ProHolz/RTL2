@@ -53,6 +53,8 @@ type
     method ToDouble(aValue: not nullable String; aLocale: Locale): Double;
     method ToDoubleInvariant(aValue: not nullable String): Double; inline;
 
+    method MilisecondsToTimeString(aMS: Double): String;
+
     method ToByte(aValue: Boolean): Byte;
     method ToByte(aValue: Double): Byte;
     method ToByte(aValue: Int32): Byte;
@@ -457,7 +459,7 @@ begin
 end;
 
 method Convert.ToBase64String(S: array of Byte; aStartIndex: Int32; aLength: Int32): not nullable String;
-  const Codes64: String = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/';
+  const Codes64: String = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 begin
   var sb := new StringBuilder();
   var a: Int32 := 0;
@@ -479,11 +481,14 @@ begin
     x := b shl (6 - a);
     sb.Append(Codes64[x]);
   end;
+  var lRemainder := sb.Length mod 3;
+  if lRemainder <> 0 then
+    sb.Append('=', (3-lRemainder));
   result := sb.ToString as not nullable;
 end;
 
 method convert.Base64StringToByteArray(S: String): array of Byte;
-  const Codes64: String = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/';
+  const Codes64: String = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 begin
   var a := 0;
   var b := 0;
@@ -671,6 +676,31 @@ begin
     exit valueOrDefault(lResult);
   {$ENDIF}
 end;
+
+method Convert.MilisecondsToTimeString(aMS: Double): String;
+begin
+  var lValue := aMS as Int64;
+  var lMilliSeconds := lValue mod 1000;
+  var lSeconds := lValue div 1000;
+  var lMinutes := lSeconds div 60;
+  lSeconds := lSeconds mod 60;
+  var lHours := lMinutes div 60;
+  lMinutes := lMinutes mod 60;
+  result := "";
+  if lHours > 0 then
+    result := result+lHours.ToString+":";
+  if lMinutes > 0 then begin
+    var lMinutesString := if length(result) > 0 then Convert.ToString(lMinutes).PadStart(2, '0') else lMinutes.ToString;
+    result := result+lMinutesString+":";
+  end;
+  var lSecondsString := if length(result) > 0 then Convert.ToString(lSeconds).PadStart(2, '0') else lSeconds.ToString;
+  result := result+lSecondsString+".";
+  result := result+Convert.ToString(lMilliSeconds).PadStart(3, '0');
+end;
+
+//
+//
+//
 
 method Convert.ToByte(aValue: Boolean): Byte;
 begin

@@ -121,10 +121,15 @@ type
     property FirstLine: String read get_FirstLine;
 
     //[&Sequence]
-    //method GetSequence: sequence of Char; iterator;
+    method GetSequence: sequence of Char; iterator;
+    begin
+      for i: Integer := 0 to Length-1 do
+        yield Chars[i];
+    end;
+
+    //operator Implicit(aString: String): sequence of  Char;
     //begin
-      //for i: Integer := 0 to Length-1 do
-        //yield Chars[i];
+      //result := aString.GetSequence;
     //end;
 
     {$IF COOPER}
