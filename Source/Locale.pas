@@ -111,6 +111,8 @@ begin
   {$ELSEIF ECHOES}
   aLocale := aLocale.Replace('_', '-');
   constructor(new System.Globalization.CultureInfo(aLocale));
+  {$ELSEIF TOFFEE}
+  constructor(NSLocale.localeWithLocaleIdentifier(NSLocale.canonicalLocaleIdentifierFromString(aLocale)));
   {$ELSEIF ISLAND}
   constructor(new RemObjects.Elements.System.Locale(aLocale));
   {$ENDIF}
@@ -165,22 +167,6 @@ begin
     fNumberFormat.DecimalSeparator := aLocaleID.NumberFormat.NumberDecimalSeparator[0];
   if aLocaleID.NumberFormat.NumberGroupSeparator.Length > 0 then
     fNumberFormat.ThousandsSeparator := aLocaleID.NumberFormat.NumberGroupSeparator[0];
-  {$ELSEIF ISLAND}
-  fDateTimeFormat.LongDatePattern := aLocaleID.DateTimeFormat.LongDatePattern;
-  fDateTimeFormat.ShortDatePattern := aLocaleID.DateTimeFormat.ShortDatePattern;
-  fDateTimeFormat.LongTimePattern := aLocaleID.DateTimeFormat.LongTimePattern;
-  fDateTimeFormat.ShortTimePattern := aLocaleID.DateTimeFormat.ShortTimePattern;
-  fDateTimeFormat.PMString := aLocaleID.DateTimeFormat.PMString;
-  fDateTimeFormat.AMString := aLocaleID.DateTimeFormat.AMString;
-  fDateTimeFormat.DateSeparator := aLocaleID.DateTimeFormat.DateSeparator;
-  fDateTimeFormat.ShortDayNames := aLocaleID.DateTimeFormat.ShortDayNames;
-  fDateTimeFormat.LongDayNames := aLocaleID.DateTimeFormat.LongDayNames;
-  fDateTimeFormat.ShortMonthNames := aLocaleID.DateTimeFormat.ShortMonthNames;
-  fDateTimeFormat.LongMonthNames := aLocaleID.DateTimeFormat.LongMonthNames;
-
-  fNumberFormat.Currency := aLocaleID.NumberFormat.Currency;
-  fNumberFormat.DecimalSeparator := aLocaleID.NumberFormat.DecimalSeparator;
-  fNumberFormat.ThousandsSeparator := aLocaleID.NumberFormat.ThousandsSeparator;
   {$ELSEIF TOFFEE}
   var lDateFormatter := new NSDateFormatter();
   lDateFormatter.locale := aLocaleID;
@@ -200,6 +186,15 @@ begin
   lDateFormatter.timeStyle := NSDateFormatterStyle.NSDateFormatterShortStyle;
   fDateTimeFormat.ShortTimePattern := lDateFormatter.dateFormat;
 
+  for i:Integer := 0 to 6 do begin
+    fDateTimeFormat.ShortDayNames[i] := lDateFormatter.shortWeekdaySymbols[i];
+    fDateTimeFormat.LongDayNames[i] := lDateFormatter.weekdaySymbols[i];
+  end;
+  for i: Integer := 0 to 11 do begin
+    fDateTimeFormat.ShortMonthNames[i] := lDateFormatter.shortMonthSymbols[i];
+    fDateTimeFormat.LongMonthNames[i] := lDateFormatter.monthSymbols[i];
+  end;
+
   var lNumberFormatter := new NSNumberFormatter();
   lNumberFormatter.locale := aLocaleID;
   fNumberFormat.Currency := lNumberFormatter.currencySymbol;
@@ -207,6 +202,22 @@ begin
     fNumberFormat.DecimalSeparator := lNumberFormatter.decimalSeparator[0];
   if lNumberFormatter.groupingSeparator.length > 0 then
     fNumberFormat.ThousandsSeparator := lNumberFormatter.groupingSeparator[0];
+  {$ELSEIF ISLAND}
+  fDateTimeFormat.LongDatePattern := aLocaleID.DateTimeFormat.LongDatePattern;
+  fDateTimeFormat.ShortDatePattern := aLocaleID.DateTimeFormat.ShortDatePattern;
+  fDateTimeFormat.LongTimePattern := aLocaleID.DateTimeFormat.LongTimePattern;
+  fDateTimeFormat.ShortTimePattern := aLocaleID.DateTimeFormat.ShortTimePattern;
+  fDateTimeFormat.PMString := aLocaleID.DateTimeFormat.PMString;
+  fDateTimeFormat.AMString := aLocaleID.DateTimeFormat.AMString;
+  fDateTimeFormat.DateSeparator := aLocaleID.DateTimeFormat.DateSeparator;
+  fDateTimeFormat.ShortDayNames := aLocaleID.DateTimeFormat.ShortDayNames;
+  fDateTimeFormat.LongDayNames := aLocaleID.DateTimeFormat.LongDayNames;
+  fDateTimeFormat.ShortMonthNames := aLocaleID.DateTimeFormat.ShortMonthNames;
+  fDateTimeFormat.LongMonthNames := aLocaleID.DateTimeFormat.LongMonthNames;
+
+  fNumberFormat.Currency := aLocaleID.NumberFormat.Currency;
+  fNumberFormat.DecimalSeparator := aLocaleID.NumberFormat.DecimalSeparator;
+  fNumberFormat.ThousandsSeparator := aLocaleID.NumberFormat.ThousandsSeparator;
   {$ENDIF}
 end;
 
@@ -217,6 +228,8 @@ begin
     fInvariant := new Locale(java.util.Locale.ROOT);
     {$ELSEIF ECHOES}
     fInvariant := new Locale(System.Globalization.CultureInfo.InvariantCulture);
+    {$ELSEIF TOFFEE}
+    fInvariant := new Locale(NSLocale.systemLocale);
     {$ELSEIF ISLAND}
     fInvariant := new Locale(RemObjects.Elements.System.Locale.Invariant);
     {$ENDIF}
@@ -231,6 +244,8 @@ begin
     fCurrent := new Locale(java.util.Locale.getDefault());
     {$ELSEIF ECHOES}
     fCurrent := new Locale(System.Threading.Thread.CurrentThread.CurrentCulture);
+    {$ELSEIF TOFFEE}
+    fCurrent := new Locale(NSLocale.currentLocale); // maybe autoupdatingCurrentLocale?
     {$ELSEIF ISLAND}
     fCurrent := new Locale(RemObjects.Elements.System.Locale.Current);
     {$ENDIF}
@@ -242,8 +257,12 @@ method Locale.GetIdentifier: not nullable String;
 begin
   {$IF COOPER}
   result := fLocaleID.toString() as not nullable;
-  {$ELSE}
-  result := '' as not nullable;
+  {$ELSEIF TOFFEE}
+  result := fLocaleID.localeIdentifier as not nullable;
+  {$ELSEIF ECHOES}
+  result := fLocaleID.Name as not nullable;
+  {$ELSEIF ISLAND}
+  result := fLocaleID.Identifier;
   {$ENDIF}
 end;
 
