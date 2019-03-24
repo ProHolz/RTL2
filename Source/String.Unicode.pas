@@ -10,6 +10,30 @@ type
   String = public partial class
   public
 
+    constructor(aCodePoints: List<UnicodeCodePoint>);
+    begin
+      var lBytes := new Byte[aCodePoints.Count*4];
+      for each cp in aCodePoints index i do begin
+        lBytes[(i*4)+3] := cp and $000000ff;
+        lBytes[(i*4)+2] := cp and $0000ff00 shr 8;
+        lBytes[(i*4)+1] := cp and $00ff0000 shr 16;
+        lBytes[(i*4)+0] := cp and $ff000000 shr 24;
+      end;
+      result := Encoding.UTF32BE.GetString(lBytes);
+    end;
+
+    constructor(aCodePoints: array of UnicodeCodePoint);
+    begin
+      var lBytes := new Byte[aCodePoints.Count*4];
+      for each cp in aCodePoints index i do begin
+        lBytes[(i*4)+3] := cp and $000000ff;
+        lBytes[(i*4)+2] := cp and $0000ff00 shr 8;
+        lBytes[(i*4)+1] := cp and $00ff0000 shr 16;
+        lBytes[(i*4)+0] := cp and $ff000000 shr 24;
+      end;
+      result := Encoding.UTF32BE.GetString(lBytes);
+    end;
+
     method ToHexString: String;
     begin
       result := Convert.ToHexString(Encoding.UTF16BE.GetBytes(self));
@@ -17,7 +41,7 @@ type
 
     method IsIndexInsideOfASurrogatePair(aIndex: Integer): Boolean; inline;
     begin
-      if (aIndex ≤ 0) or (aIndex ≥ Length-1) then
+      if (aIndex ≤ 0) or (aIndex ≥ Length) then
         exit false;
       var ch := UInt32(self[aIndex-1]);
       result := IsFirstSurrogatePairChar(ch);
@@ -60,7 +84,6 @@ type
       result := lResult;
     end;
 
-    {.$IF NOT COOPER}
     method ToUnicodeCodePoints: ImmutableList<UnicodeCodePoint>;
     begin
       var lResult := new List<UnicodeCodePoint> withCapacity(Length);
@@ -96,7 +119,6 @@ type
 
       result := lResult;
     end;
-    {.$ENDIF}
 
     method UnicodeCodePointAtIndex(aIndex: Integer): UnicodeCodePoint;
     begin
@@ -163,7 +185,7 @@ type
       if (aIndex = 0) or (aIndex = Length) then
         exit false;
       if IsIndexInsideOfASurrogatePair(aIndex) then
-        raise new UnicodeException($"Index {aIndex} is inside a surrogate pair");
+        exit IsIndexInsideOfAJoinedUnicodeCharacter(aIndex-1) or IsIndexInsideOfAJoinedUnicodeCharacter(aIndex+1);
 
       var cp := UnicodeCodePointAtIndex(aIndex);
       if IsModifierUnicodePoint(cp) or IsVariationSelectorsUnicodePoint(cp) or IsJoinerUnicodePoint(cp) then begin
@@ -179,7 +201,9 @@ type
             var cp3 := UnicodeCodePointBeforeIndex(i);
             if not IsRegionalIndicatorUnicodePoint(cp3) then
               if ((aIndex-i)/2) mod 2 = 1 then
-                exit true;
+                exit true
+              else
+                break;
             dec(i, 2);
           end;
           if ((aIndex-i)/2) mod 2 = 1 then
@@ -215,12 +239,11 @@ type
       end;
     end;
 
-    {$IF ECHOES}
     method ToUnicodeCharacters: ImmutableList<UnicodeCharacter>;
     begin
       var lResult := new List<UnicodeCharacter>;
 
-      var lCurrentChar := "";
+      var lCurrentChar: array of Char;
       var lCombineWithNext := false;
       var lIsRegionalIndicatorLetter := false;
       for each ch: UInt32 in ToUnicodeCodePoints do begin
@@ -251,16 +274,15 @@ type
           lCombineWithNext := false;
         end
         else begin
-          if lCurrentChar.Length > 0 then
-            lResult.Add(lCurrentChar as UnicodeCharacter);
+          if RemObjects.Elements.System.length(lCurrentChar) > 0 then
+            lResult.Add(new String(lCurrentChar) as UnicodeCharacter);
           lCurrentChar := UnicodeCodePoint(ch).ToUTF16;
         end;
       end;
-      if lCurrentChar.Length > 0 then
-        lResult.Add(lCurrentChar as UnicodeCharacter);
+      if RemObjects.Elements.System.length(lCurrentChar) > 0 then
+        lResult.Add(new String(lCurrentChar) as UnicodeCharacter);
       result := lResult;//ToUnicodeCodePoints.Select(ch -> chr(ch).ToString as UnicodeCharacter).ToList;
     end;
-    {$ENDIF}
 
   private
 
@@ -326,11 +348,20 @@ type
       result := aCodePoint in [$1F1E6..$1F1FF]
     end;
 
-
   end;
 
-{$IF ECHOES}
-extension method UnicodeCodePoint.ToUTF16: String; public;
+extension method UnicodeCodePoint.ToUTF16: array of Char; public;
+begin
+  if UInt32(self) > $ffff then begin
+    result := [chr($D800 + (((UInt32(self) - $10000) shr 10) and $03ff)),
+              chr($DC00 + ((UInt32(self) - $10000) and $03ff))];
+  end
+  else begin
+    result := [Char(UInt16(self))];
+  end;
+end;
+
+extension method UnicodeCodePoint.ToUTF16String: String; public;
 begin
   if UInt32(self) > $ffff then begin
     result := chr($D800 + (((UInt32(self) - $10000) shr 10) and $03ff))+
@@ -340,6 +371,5 @@ begin
     result := chr(UInt16(self));
   end;
 end;
-{$ENDIF}
 
 end.
